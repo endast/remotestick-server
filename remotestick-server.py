@@ -25,8 +25,9 @@ from getopt import getopt, GetoptError
 from sys import argv, exit, platform
 from base64 import b64encode
 import time
+import json
 
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 API_VERSION = 1
 
 #Device methods
@@ -88,21 +89,27 @@ def errmsg(x):
     }[x]
    
 def err(format, responsecode, request, code, code_msg=None):
+
     response.status = responsecode
     if responsecode == 401:
         response.headers.append("WWW-Authenticate", "Basic realm=\"RemoteStick\"")
 
     if code_msg == None:
         code_msg = errmsg(code)
-    
+
     if format == "xml":
         return err_xml(request, code_msg)
+    if format == "json":
+        return err_json(request, code_msg)
     else:
         return err_xml(request, code_msg)
 
 def err_xml(request, msg):
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<hash>\n\t<request>" + request + "</request>\n\t<error>" + msg + "</error>\n</hash>"
 
+def err_json(request, msg):
+    return json.dumps({"hash":{"request":request, "error":msg}})
+	
 def authenticate(auth):
     global username, password
     if reqauth and auth == None:
@@ -113,38 +120,76 @@ def authenticate(auth):
     else:
         return True
 
-def read_device(identity):
+def read_device(identity, format):
     name = libtelldus.tdGetName(identity)
     lastcmd = libtelldus.tdLastSentCommand(identity, 1)
     protocol = libtelldus.tdGetProtocol(identity)
     model = libtelldus.tdGetModel(identity)
     methods = libtelldus.tdMethods(identity, ALL_METHODS)
     lastValue = libtelldus.tdLastSentValue(identity)
-    element = "<device id=\"" + str(identity) + "\">\n\t\t<name>" + name + "</name>\n\t\t<protocol>" + protocol + "</protocol>\n\t\t<model>" + model + "</model>\n"
-    if lastcmd == 1:
-        element += "\t\t<lastcmd>ON</lastcmd>\n"        
-    else:
-        element += "\t\t<lastcmd>OFF</lastcmd>\n"
-    if lastValue != None and lastValue != "":
-        try:
-            lastValueConverted = int(lastValue)
-            element += "\t\t<lastvalue>" + str(lastValueConverted) + "</lastvalue>\n"
-        except Exception, e:
-            pass
+
+    if format == "xml":
+        element = "<device id=\"" + str(identity) + "\">\n\t\t<name>" + name + "</name>\n\t\t<protocol>" + protocol + "</protocol>\n\t\t<model>" + model + "</model>\n"
+        if lastcmd == 1:
+            element += "\t\t<lastcmd>ON</lastcmd>\n"        
+        else:
+            element += "\t\t<lastcmd>OFF</lastcmd>\n"
+        if lastValue != None and lastValue != "":
+            try:
+                lastValueConverted = int(lastValue)
+                element += "\t\t<lastvalue>" + str(lastValueConverted) + "</lastvalue>\n"
+            except Exception, e:
+                pass
     
-    if methods & TELLSTICK_BELL:
-        element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_BELL) + "\">" + "TELLSTICK_BELL</supportedMethod>\n"
-    if methods & TELLSTICK_TOGGLE:
-        element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_TOGGLE) + "\">" + "TELLSTICK_TOGGLE</supportedMethod>\n"
-    if methods & TELLSTICK_TURNOFF:
-        element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_TURNOFF) + "\">" + "TELLSTICK_TURNOFF</supportedMethod>\n"
-    if methods & TELLSTICK_TURNON:
-        element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_TURNON) + "\">" + "TELLSTICK_TURNON</supportedMethod>\n"
-    if methods & TELLSTICK_DIM:
-        element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_DIM) + "\">" + "TELLSTICK_DIM</supportedMethod>\n"
-    if methods & TELLSTICK_LEARN:
-        element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_LEARN) + "\">" + "TELLSTICK_LEARN</supportedMethod>\n"
-    element += "</device>\n"
+        if methods & TELLSTICK_BELL:
+            element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_BELL) + "\">" + "TELLSTICK_BELL</supportedMethod>\n"
+        if methods & TELLSTICK_TOGGLE:
+            element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_TOGGLE) + "\">" + "TELLSTICK_TOGGLE</supportedMethod>\n"
+        if methods & TELLSTICK_TURNOFF:
+            element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_TURNOFF) + "\">" + "TELLSTICK_TURNOFF</supportedMethod>\n"
+        if methods & TELLSTICK_TURNON:
+            element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_TURNON) + "\">" + "TELLSTICK_TURNON</supportedMethod>\n"
+        if methods & TELLSTICK_DIM:
+            element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_DIM) + "\">" + "TELLSTICK_DIM</supportedMethod>\n"
+        if methods & TELLSTICK_LEARN:
+            element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_LEARN) + "\">" + "TELLSTICK_LEARN</supportedMethod>\n"
+        element += "</device>\n"
+
+    if format == "json":
+        element = { "id":str(identity),
+        "name":name,
+        "protocol":protocol,
+        "model":model,
+        "lastcmd":"",
+        "lastvalue":"",
+        "supportedMethods":[]
+        }
+
+        if lastcmd == 1:
+            element["lastcmd"] = "ON"    
+        else:
+            element["lastcmd"] = "OFF"    
+
+        if lastValue != None and lastValue != "":
+            try:
+                lastValueConverted = int(lastValue)
+                element["lastvalue"] = str(lastValueConverted)
+
+            except Exception, e:
+                pass
+        if methods & TELLSTICK_BELL:
+            element["supportedMethods"].append({"id":str(TELLSTICK_BELL), "name":"TELLSTICK_BELL"})
+        if methods & TELLSTICK_TOGGLE:
+            element["supportedMethods"].append({"id":str(TELLSTICK_TOGGLE), "name":"TELLSTICK_TOGGLE"})
+        if methods & TELLSTICK_TURNOFF:
+            element["supportedMethods"].append({"id":str(TELLSTICK_TURNOFF), "name":"TELLSTICK_TURNOFF"})
+        if methods & TELLSTICK_TURNON:
+            element["supportedMethods"].append({"id":str(TELLSTICK_TURNON), "name":"TELLSTICK_TURNON"})
+        if methods & TELLSTICK_DIM:
+            element["supportedMethods"].append({"id":str(TELLSTICK_DIM), "name":"TELLSTICK_DIM"})
+        if methods & TELLSTICK_LEARN:
+            element["supportedMethods"].append({"id":str(TELLSTICK_LEARN), "name":"TELLSTICK_LEARN"})
+
     return element
 
 def pre_check(format, accepted_formats):
@@ -157,26 +202,38 @@ def pre_check(format, accepted_formats):
 def set_headers(format):
     if format == "xml":
         response.set_content_type('text/xml; charset=utf8')
+    if format == "json":
+        response.set_content_type('application/json; charset=utf8')
+
     response.headers.append("X-API-VERSION", str(API_VERSION))
     response.headers.append("X-VERSION", VERSION)
 
 @route('/devices.:format', method='GET')
 def devices(format):
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, 'GET /devices.' + format, error_code)
     set_headers(format)
-    result = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<devices>\n"
+ 
     numDevices = libtelldus.tdGetNumberOfDevices()
-    for i in range(numDevices):
-        result += read_device(libtelldus.tdGetDeviceId(i))
-    result += "</devices>"
+    if format == "xml":
+        result = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<devices>\n"
+        for i in range(numDevices):
+            result += read_device(libtelldus.tdGetDeviceId(i), format)
+        result += "</devices>"
+    
+    if format == "json":
+        devices = []
+        for i in range(numDevices):
+             deviceInfo = read_device(libtelldus.tdGetDeviceId(i), format)
+             devices.append(deviceInfo)
+        result = json.dumps({"devices":devices})
     return result
 
 @route('/devices.:format', method='POST')
 def new_device(format):
     request_str = 'POST /devices.' + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
@@ -208,30 +265,39 @@ def new_device(format):
     libtelldus.tdSetModel(identity, model.strip())
     for param in parameters:
         libtelldus.tdSetDeviceParameter(identity, param[0], param[1])
-    retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-    retval += read_device(identity)
+    if format == "xml":
+        retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        retval += read_device(identity, format)
+    if format == "json":
+	    retval = json.dumps(read_device(identity, format))
     return retval
 
 @route('/devices/:id.:format', method='GET')
 def get_device(id, format):
     request_str = 'GET /devices/' + id + "." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
+    if format == "xml":
+        retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        try:
+            retval += read_device(int(id), format)
+            return retval
+        except ValueError:
+            return err(format, 400, request_str, 210)
 
-    retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-    try:
-        retval += read_device(int(id))
-        return retval
-    except ValueError:
-        return err(format, 400, request_str, 210)
-
+    if format == "json":
+        try:
+            retval = json.dumps(read_device(int(id), format))
+            return retval
+        except ValueError:
+            return err(format, 400, request_str, 210)
 
 @route('/devices/:id.:format', method='DELETE')
 def delete_device(id, format):
     request_str = 'DELETE /devices/' + id + "." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
@@ -249,7 +315,7 @@ def delete_device(id, format):
 @route('/devices/:id.:format', method='PUT')
 def change_device(id, format):
     request_str = 'PUT /devices/' + id + "." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
@@ -265,19 +331,28 @@ def change_device(id, format):
     
     if protocol:
         libtelldus.tdSetProtocol(int(id), protocol)
-          
-    retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-    try:
-        retval += read_device(int(id))
-        return retval
-    except ValueError:
-        return err(format, 400, request_str, 210)
+
+    if format == "xml":
+        retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        try:
+            retval += read_device(int(id), format)
+            return retval
+        except ValueError:
+            return err(format, 400, request_str, 210)
+		    
+    if format == "json":
+        try:
+            retval = json.dumps(read_device(int(id), format))
+            return retval
+        except ValueError:
+            return err(format, 400, request_str, 210)
+
     return ""
 
 @route('/devices/:id/on.:format', method='GET')
 def turnon_device(id, format):
     request_str = 'GET /devices/' + id + "/on." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
@@ -299,7 +374,7 @@ def turnon_device(id, format):
 @route('/devices/:id/off.:format', method='GET')
 def turnoff_device(id, format):
     request_str = 'GET /devices/' + id + "/off." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
@@ -321,7 +396,8 @@ def turnoff_device(id, format):
 @route('/devices/:id/dim/:level.:format', method='GET')
 def dim_device(id, level, format):
     request_str = 'GET /devices/' + id + "/dim/" + level + "." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
+
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
@@ -345,7 +421,7 @@ def dim_device(id, level, format):
 @route('/devices/:id/learn.:format', method='GET')
 def learn_device(id, format):
     request_str = 'GET /devices/' + id + "/learn." + format
-    ok, response_code, error_code = pre_check(format, ["xml"])
+    ok, response_code, error_code = pre_check(format, ["xml", "json"])
     if not ok:
         return err(format, response_code, request_str, error_code)
     set_headers(format)
