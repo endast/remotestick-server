@@ -5,8 +5,8 @@ RemoteStick server exposes the Tellstick
 (see [Telldus Homepage](http://www.telldus.se) ) interface through RESTful
 services. RemoteStick server uses the native library libtelldus-core to
 communicate with the Tellstick. It supports resource browsing and resource
-operations (like turning on/off a device). Responses are given in XML format
-(support for JSON format is planned). It aims to fully reflect the capabilities
+operations (like turning on/off a device). Responses are given in XML format 
+or JSON. It aims to fully reflect the capabilities
 of the libtelldus-core.
 
 ## Prerequisites
