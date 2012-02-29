@@ -127,19 +127,24 @@ def read_device(identity, format):
     model = libtelldus.tdGetModel(identity)
     methods = libtelldus.tdMethods(identity, ALL_METHODS)
     lastValue = libtelldus.tdLastSentValue(identity)
+    lastValueConverted = ""
+
+    if lastcmd == 1:
+        lastcmdstr = "ON"      
+    else:
+        lastcmdstr = "OFF"
+
+    if lastValue != None and lastValue != "":
+        try:
+            lastValueConverted = int(lastValue)
+            element += "\t\t<lastvalue>" + str(lastValueConverted) + "</lastvalue>\n"
+        except Exception, e:
+            pass
 
     if format == "xml":
         element = "<device id=\"" + str(identity) + "\">\n\t\t<name>" + name + "</name>\n\t\t<protocol>" + protocol + "</protocol>\n\t\t<model>" + model + "</model>\n"
-        if lastcmd == 1:
-            element += "\t\t<lastcmd>ON</lastcmd>\n"        
-        else:
-            element += "\t\t<lastcmd>OFF</lastcmd>\n"
-        if lastValue != None and lastValue != "":
-            try:
-                lastValueConverted = int(lastValue)
-                element += "\t\t<lastvalue>" + str(lastValueConverted) + "</lastvalue>\n"
-            except Exception, e:
-                pass
+        element += "\t\t<lastcmd>"+lastcmdstr+"</lastcmd>\n"        
+        element += "\t\t<lastvalue>" + str(lastValueConverted) + "</lastvalue>\n"
     
         if methods & TELLSTICK_BELL:
             element += "\t\t<supportedMethod id=\"" + str(TELLSTICK_BELL) + "\">" + "TELLSTICK_BELL</supportedMethod>\n"
@@ -164,19 +169,10 @@ def read_device(identity, format):
         "lastvalue":"",
         "supportedMethods":[]
         }
+ 
+        element["lastcmd"] = lastcmdstr
+        element["lastvalue"] = lastValueConverted
 
-        if lastcmd == 1:
-            element["lastcmd"] = "ON"    
-        else:
-            element["lastcmd"] = "OFF"    
-
-        if lastValue != None and lastValue != "":
-            try:
-                lastValueConverted = int(lastValue)
-                element["lastvalue"] = str(lastValueConverted)
-
-            except Exception, e:
-                pass
         if methods & TELLSTICK_BELL:
             element["supportedMethods"].append({"id":str(TELLSTICK_BELL), "name":"TELLSTICK_BELL"})
         if methods & TELLSTICK_TOGGLE:
