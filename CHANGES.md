@@ -1,5 +1,8 @@
 # ChangeLog
 
+## 2012-02-27 - endast (0.4.2)
+ * Added support for JSON
+
 ## 2010-12-31 - pakerfeldt (0.4.1)
  * Fixed bug where -f flag was required for static files
 
