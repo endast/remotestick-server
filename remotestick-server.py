@@ -201,9 +201,9 @@ def pre_check(format, accepted_formats):
 
 def set_headers(format):
     if format == "xml":
-        response.set_content_type('text/xml; charset=utf8')
+        response.content_type = 'text/xml; charset=utf8'
     if format == "json":
-        response.set_content_type('application/json; charset=utf8')
+        response.content_type = 'application/json; charset=utf8'
 
     response.headers.append("X-API-VERSION", str(API_VERSION))
     response.headers.append("X-VERSION", VERSION)
